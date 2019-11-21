@@ -123,7 +123,7 @@ SimpleMuonAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
   ntuple_.event = iEvent.id().event();
 
   ntuple_.nRecoMuon = recoMuons.size();
- 
+
   // basic reco muon analysis
   for(int i = 0; i < nMaxRecoMuons; i++) {
 
@@ -142,19 +142,6 @@ SimpleMuonAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
     std::cout << "muon pt " << recoMuon.pt() << std::endl;
     std::cout << "\tmuon eta " << recoMuon.eta() << " " << "muon phi " <<recoMuon.phi() << std::endl;
     std::cout << "\tmuon prop eta " << prop_point.eta() << " " << "muon prop phi " <<prop_point.phi() << std::endl << std::endl;
-    /*
-    // ignore tracker muons
-    if (!recoMuon.isGlobalMuon() and !recoMuon.isStandAloneMuon())
-    continue;
-
-    const auto& muonTrack = recoMuon.isGlobalMuon() ? recoMuon.globalTrack() : recoMuon.outerTrack();
-
-    const auto& trackrechits = muonTrack->recHits();
-
-    for (const auto& r : trackrechits){
-    std::cout << "rechit " << r->type() << endl;
-    }
-    */
 
     // fill basic muon quantities
     ntuple_.reco_pt[i] = recoMuon.pt();
@@ -163,15 +150,15 @@ SimpleMuonAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
     ntuple_.reco_eta_prop[i] = prop_point.eta();
     ntuple_.reco_phi_prop[i] = prop_point.phi();
     ntuple_.reco_charge[i] = recoMuon.charge();
-   
+
     // https://twiki.cern.ch/twiki/bin/viewauth/CMS/SWGuideMuonIdRun2#Medium_Muon
     ntuple_.reco_isMediumMuon[i] = int(muon::isMediumMuon(recoMuon));
-    
+
     ntuple_.reco_hasEMTFMatch[i] = 0;
   }
 
   // basic l1 muon analysis
-  
+
   int count = 0;
 
   int i = 0;
@@ -183,6 +170,9 @@ SimpleMuonAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
 
       const auto& emtfTrack = *cand;
 
+      // exclude tracks with |eta| < 1.2
+      if (std::abs(emtfTrack.hwEta()*0.010875) < 1.2) continue;
+
       // https://github.com/cms-sw/cmssw/blob/master/DataFormats/L1TMuon/interface/RegionalMuonCand.h
       ntuple_.emtf_pt[i] = emtfTrack.hwPt()*0.5;
       ntuple_.emtf_eta[i] = emtfTrack.hwEta()*0.010875;
@@ -192,16 +182,16 @@ SimpleMuonAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
       ntuple_.emtf_phi[i] = normalizedPhi(globalphi*2*M_PI/576);
       ntuple_.emtf_charge[i] = 1-2*emtfTrack.hwSign();
       ntuple_.emtf_quality[i] = emtfTrack.hwQual();
-      
+
       count+=1;
 
       i++;
     }
   }
-  
+
   ntuple_.nEmtf = i;
   // match reco muons to emtf tracks
- 
+
 
   // fill tree
   tree_->Fill();
