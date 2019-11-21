@@ -74,6 +74,9 @@ private:
   /// general interface to propagation
   GlobalPoint propagateToR(const GlobalPoint &inner_point, const GlobalVector &inner_vector, float r, int charge) const;
 
+  // is muon near the sector edge
+  bool isNearSectorEdge(float phi) const;
+
   edm::EDGetTokenT<CSCSegmentCollection> cscSegmentToken_;
   edm::EDGetTokenT<MuonCollection> recoMuonToken_;
   edm::EDGetTokenT<RegionalMuonCandBxCollection> emtfToken_;
@@ -139,9 +142,13 @@ SimpleMuonAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
     const GlobalPoint& prop_point(propagateToZ(muon_point, muon_vector,
                                                zStation2, recoMuon.charge()));
 
+    const float prop_phi(prop_point.phi());
     std::cout << "muon pt " << recoMuon.pt() << std::endl;
     std::cout << "\tmuon eta " << recoMuon.eta() << " " << "muon phi " <<recoMuon.phi() << std::endl;
     std::cout << "\tmuon prop eta " << prop_point.eta() << " " << "muon prop phi " <<prop_point.phi() << std::endl << std::endl;
+
+    // ignore muons near the sector edges
+    if (isNearSectorEdge(prop_phi)) continue;
 
     // fill basic muon quantities
     ntuple_.reco_pt[i] = recoMuon.pt();
@@ -230,6 +237,24 @@ SimpleMuonAnalyzer::propagateToR(const GlobalPoint &inner_point,
 
   if (tsos.isValid()) return tsos.globalPosition();
   return GlobalPoint();
+}
+
+bool
+SimpleMuonAnalyzer::isNearSectorEdge(float phi) const
+{
+  const float absphi(std::abs(phi));
+  const float absphideg(absphi * 180 / M_PI);
+
+  // "neighbor" LCTs come from the left of the sector edge, not equally around the edge
+  bool e4(5 - 180 < absphideg and absphideg < 15 - 180);
+  bool e5(5 - 120 < absphideg and absphideg < 15 - 120);
+  bool e6(5 - 60  < absphideg and absphideg < 15 - 60);
+  bool e0(5 + 0   < absphideg and absphideg < 15 + 0);
+  bool e1(5 + 60  < absphideg and absphideg < 15 + 60);
+  bool e2(5 + 120 < absphideg and absphideg < 15 + 120);
+  bool e3(5 + 180 < absphideg and absphideg < 15 + 180);
+
+  return (e0 or e1 or e2 or e3 or e4 or e5 or e6);
 }
 
 //define this as a plug-in
