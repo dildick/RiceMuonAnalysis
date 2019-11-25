@@ -2,7 +2,7 @@
 # using: 
 # Revision: 1.19 
 # Source: /local/reps/CMSSW/CMSSW/Configuration/Applications/python/ConfigBuilder.py,v 
-# with command line options: RiceMuonAnalysis/Configuration/Pythia8_CP5_HadronizerFilter_13TeV_cfi --mc --eventcontent RAWSIM,LHE --datatier GEN-SIM,LHE --conditions 102X_upgrade2018_realistic_v9 --beamspot Realistic25ns13TeVEarly2018Collision --step GEN,SIM --nThreads 8 --geometry DB:Extended --era Run2_2018 --filein file:file.lhe --fileout file:step0.root --filetype LHE --no_exec -n 10
+# with command line options: RiceMuonAnalysis/Configuration/Pythia8_CP5_HadronizerFilter_13TeV_cfi --mc --eventcontent RAWSIM --datatier GEN-SIM --conditions 102X_upgrade2018_realistic_v9 --beamspot Realistic25ns13TeVEarly2018Collision --step GEN,SIM --nThreads 8 --geometry DB:Extended --era Run2_2018 --filein file:/uscms/home/mdecaro/nobackup/Dimuon/CMSSW_10_6_0/src/RiceMuonAnalysis/SimpleMuonAnalyzer/test/unweighted_events.lhe --fileout file:step0.root --filetype LHE --no_exec -n 10
 import FWCore.ParameterSet.Config as cms
 
 from Configuration.StandardSequences.Eras import eras
@@ -32,7 +32,7 @@ process.maxEvents = cms.untracked.PSet(
 # Input source
 process.source = cms.Source("LHESource",
     dropDescendantsOfDroppedBranches = cms.untracked.bool(False),
-    fileNames = cms.untracked.vstring('file:file.lhe'),
+    fileNames = cms.untracked.vstring('file:/uscms/home/mdecaro/nobackup/Dimuon/CMSSW_10_6_0/src/RiceMuonAnalysis/SimpleMuonAnalyzer/test/unweighted_events.lhe'),
     inputCommands = cms.untracked.vstring(
         'keep *', 
         'drop LHEXMLStringProduct_*_*_*'
@@ -68,16 +68,6 @@ process.RAWSIMoutput = cms.OutputModule("PoolOutputModule",
     splitLevel = cms.untracked.int32(0)
 )
 
-process.LHEoutput = cms.OutputModule("PoolOutputModule",
-    dataset = cms.untracked.PSet(
-        dataTier = cms.untracked.string('LHE'),
-        filterName = cms.untracked.string('')
-    ),
-    fileName = cms.untracked.string('file:step0_inLHE.root'),
-    outputCommands = process.LHEEventContent.outputCommands,
-    splitLevel = cms.untracked.int32(0)
-)
-
 # Additional output definition
 
 # Other statements
@@ -90,8 +80,7 @@ process.generator = cms.EDFilter("Pythia8HadronizerFilter",
     PythiaParameters = cms.PSet(
         parameterSets = cms.vstring(
             'pythia8CommonSettings', 
-            'pythia8CP5Settings', 
-            'processParameters'
+            'pythia8CP5Settings'
         ),
         pythia8CP5Settings = cms.vstring(
             'Tune:pp 14', 
@@ -140,10 +129,9 @@ process.simulation_step = cms.Path(process.psim)
 process.genfiltersummary_step = cms.EndPath(process.genFilterSummary)
 process.endjob_step = cms.EndPath(process.endOfProcess)
 process.RAWSIMoutput_step = cms.EndPath(process.RAWSIMoutput)
-process.LHEoutput_step = cms.EndPath(process.LHEoutput)
 
 # Schedule definition
-process.schedule = cms.Schedule(process.generation_step,process.genfiltersummary_step,process.simulation_step,process.endjob_step,process.RAWSIMoutput_step,process.LHEoutput_step)
+process.schedule = cms.Schedule(process.generation_step,process.genfiltersummary_step,process.simulation_step,process.endjob_step,process.RAWSIMoutput_step)
 from PhysicsTools.PatAlgos.tools.helpers import associatePatAlgosToolsTask
 associatePatAlgosToolsTask(process)
 
