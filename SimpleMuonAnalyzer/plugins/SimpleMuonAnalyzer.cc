@@ -118,19 +118,22 @@ SimpleMuonAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
 
   using namespace edm;
 
-  const auto& recoMuons = iEvent.get(recoMuonToken_);
-  const auto& emtfTracks = iEvent.get(emtfToken_);
+  edm::Handle<MuonCollection> recoMuons;
+  iEvent.getByToken(recoMuonToken_, recoMuons);
+
+  edm::Handle<RegionalMuonCandBxCollection> emtfTracks;
+  iEvent.getByToken(emtfToken_, emtfTracks);
 
   ntuple_.run = iEvent.id().run();
   ntuple_.lumi = iEvent.id().luminosityBlock();
   ntuple_.event = iEvent.id().event();
 
-  ntuple_.nRecoMuon = recoMuons.size();
+  ntuple_.nRecoMuon = recoMuons->size();
 
   // basic reco muon analysis
   for(int i = 0; i < nMaxRecoMuons; i++) {
 
-    const auto& recoMuon = recoMuons.at(i);
+    const auto& recoMuon = recoMuons->at(i);
 
     // propagate the muon to the second muon endcap station
     const auto& muon_point = GlobalPoint(recoMuon.vertex().x(), recoMuon.vertex().y(), recoMuon.vertex().z());;
@@ -169,11 +172,11 @@ SimpleMuonAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSe
   int count = 0;
 
   int i = 0;
-  for (int bx = emtfTracks.getFirstBX(); bx <= emtfTracks.getLastBX(); bx++ ){
+  for (int bx = emtfTracks->getFirstBX(); bx <= emtfTracks->getLastBX(); bx++ ){
 
     if ( bx != 0) continue;
 
-    for (auto cand = emtfTracks.begin(bx); cand != emtfTracks.end(bx); ++cand ){
+    for (auto cand = emtfTracks->begin(bx); cand != emtfTracks->end(bx); ++cand ){
 
       const auto& emtfTrack = *cand;
 
