@@ -87,8 +87,8 @@ FilterSample2GenMu::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
   const reco::GenParticleCollection& candidateC = *candidates.product();
 
   
-  double muon_eta[5] = {0, 0, 0, 0, 0};
-  double muon_phi[5] = {0, 0, 0, 0, 0};
+  double muon_eta[6] = {0, 0, 0, 0, 0, 0};
+  double muon_phi[6] = {0, 0, 0, 0, 0, 0};
 
   
   int mu1_index;
@@ -109,11 +109,26 @@ FilterSample2GenMu::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
   }
 
 
-  //If four muons, check for two unique muon pairs, each pair with dR<0.5 that pass through different endcaps.
-  if ((muon_eta[3] != 0) and (muon_eta[4]==0)) {
+  //We will accept events that have at least one muon pair passing through the same endcap with dR<0.5. 
+  //If there are two muon pairs in the event, require they pass through different endcap.
 
-    for (int i=0 ; i<4 ; i++) {
-      for (int j=0 ; j<4 ; j++) {
+  //If two or three muons in the event, look for one good muon pair.
+  if ((muon_eta[1] != 0) and (muon_eta[3]==0)) {
+    for (int i=0 ; i<3 ; i++) {
+      for (int j=0 ; j<3 ; j++) {
+	if (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5) {
+	  return true;
+	}
+      }
+    }
+  }
+
+
+  //If four or five muons in the event, check for two unique muon pairs, each pair with dR<0.5 that pass through different endcaps.
+  if ((muon_eta[3] != 0) and (muon_eta[5]==0)) {
+
+    for (int i=0 ; i<5 ; i++) {
+      for (int j=0 ; j<5 ; j++) {
 
         if ((j!= i) and ((muon_eta[i] * muon_eta[j])) > 0) {
 	    if (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5) {
@@ -129,9 +144,9 @@ FilterSample2GenMu::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
     
     //Look for a second muon pair, making sure not to reuse the same muons that you just used.
     if (check==1) {
-      for (int i=0 ; i<4 ; i++) {
+      for (int i=0 ; i<5 ; i++) {
 	if ((i!=mu1_index) and (i!=mu2_index)) {
-	  for (int j=0 ; j<4 ; j++) {
+	  for (int j=0 ; j<5 ; j++) {
 	    if ((j!= i) and (j!=mu1_index) and (j!=mu2_index)) {
 
 	      //Check that this new muon pair is in a different endcap than the other pair.
