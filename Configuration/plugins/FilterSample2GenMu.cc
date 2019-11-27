@@ -87,14 +87,13 @@ FilterSample2GenMu::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
   const reco::GenParticleCollection& candidateC = *candidates.product();
 
   
-  double muon_eta[4] = {0, 0, 0, 0};
-  double muon_phi[4] = {0, 0, 0, 0};
+  double muon_eta[5] = {0, 0, 0, 0, 0};
+  double muon_phi[5] = {0, 0, 0, 0, 0};
 
   
   int mu1_index;
   int mu2_index;
-  int check1;
-  int check2;
+  int check;
   double eta1;
   
 
@@ -109,12 +108,9 @@ FilterSample2GenMu::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
     }
   }
 
-  //std::cout << muon_eta[2] << std::endl;
-  //std::cout << muon_phi[2] << std::endl;
-
 
   //If four muons, check for two unique muon pairs, each pair with dR<0.5 that pass through different endcaps.
-  if (muon_eta[3] != 0) {
+  if ((muon_eta[3] != 0) and (muon_eta[4]==0)) {
 
     for (int i=0 ; i<4 ; i++) {
       for (int j=0 ; j<4 ; j++) {
@@ -123,38 +119,31 @@ FilterSample2GenMu::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
 	    if (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5) {
 	      mu1_index=i;
 	      mu2_index=j;
-	      check1 = 1;
+	      check = 1;
 
 	      eta1 = muon_eta[i];
-	      return true;
 	    } 
 	}
       }
     }
-
-
     
-  
-    for (int i=0 ; i<4 ; i++) {
-      if ((i!=mu1_index) and (i!=mu2_index)) {
-        for (int j=0 ; j<4 ; j++) {
-          if ((j!= i) and (j!=mu1_index) and (j!=mu2_index)) {
+    //Look for a second muon pair, making sure not to reuse the same muons that you just used.
+    if (check==1) {
+      for (int i=0 ; i<4 ; i++) {
+	if ((i!=mu1_index) and (i!=mu2_index)) {
+	  for (int j=0 ; j<4 ; j++) {
+	    if ((j!= i) and (j!=mu1_index) and (j!=mu2_index)) {
 
 	      //Check that this new muon pair is in a different endcap than the other pair.
-	    if (((eta1 * muon_eta[i]) < 0) and ((muon_eta[i] * muon_eta[j]) > 0) and (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5)) {
-	      check2=1;
-
+	      if (((eta1 * muon_eta[i]) < 0) and ((muon_eta[i] * muon_eta[j]) > 0) and (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5)) {
+		return true;
 	      } 
 	    }
           }
 	}
-    
+      }
     }
-
-    if ((check1==1) or (check2==1)) return true;
   }
-
-  
 
   return false;
 }
