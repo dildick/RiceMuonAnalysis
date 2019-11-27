@@ -116,7 +116,7 @@ FilterSample2GenMu::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
   if ((muon_eta[1] != 0) and (muon_eta[3]==0)) {
     for (int i=0 ; i<3 ; i++) {
       for (int j=0 ; j<3 ; j++) {
-	if (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5) {
+	if ((j!=i) and (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5)) {
 	  return true;
 	}
       }
