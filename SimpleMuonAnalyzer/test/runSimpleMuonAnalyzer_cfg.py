@@ -30,6 +30,7 @@ process.SimpleMuonAnalyzer = cms.EDAnalyzer(
     "SimpleMuonAnalyzer",
     verbose = cms.bool(False),
     muons = cms.InputTag("muons"),
+    candidates = cms.InputTag("candidates"),
     emtf = cms.InputTag("gmtStage2Digis","EMTF"),
 )
 

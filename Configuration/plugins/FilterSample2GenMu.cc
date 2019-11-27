@@ -12,6 +12,10 @@
 #include "DataFormats/Math/interface/deltaR.h"
 #include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 
+#include "DataFormats/Candidate/interface/Candidate.h"
+
+
+
 //******************************************************************************
 //                           Class declaration
 //******************************************************************************
@@ -40,6 +44,7 @@ private:
 
   // Labels to access
   edm::EDGetTokenT<reco::GenParticleCollection > m_muons;
+  edm::EDGetTokenT<reco::GenParticleCollection > m_candidates;
 };
 
 //
@@ -56,6 +61,7 @@ private:
 FilterSample2GenMu::FilterSample2GenMu(const edm::ParameterSet& iConfig)
 {
   m_muons           = consumes<reco::GenParticleCollection >(edm::InputTag("muons"));
+  m_candidates      = consumes<reco::GenParticleCollection >(edm::InputTag("candidates"));
 }
 
 
@@ -74,8 +80,81 @@ FilterSample2GenMu::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
   using namespace edm;
 
   edm::Handle<reco::GenParticleCollection > muons;
+  edm::Handle<reco::GenParticleCollection > candidates;
   iEvent.getByToken(m_muons, muons);
-  const reco::GenParticleCollection& muonC = *muons.product();
+  iEvent.getByToken(m_candidates, candidates);
+  //const reco::GenParticleCollection& muonC = *muons.product();
+  const reco::GenParticleCollection& candidateC = *candidates.product();
+
+  
+  double muon_eta[4] = {0, 0, 0, 0};
+  double muon_phi[4] = {0, 0, 0, 0};
+
+  
+  int mu1_index;
+  int mu2_index;
+  int check1;
+  int check2;
+  double eta1;
+  
+
+  //Pick out muons (Id=+/- 13) that are final state muons (status=1) in the endcap system (1.2<|eta|<2.4).
+  //Store their eta and phis into a local array to calculate dR in the next step.
+  int j=0;
+  for (std::size_t i=0 ; i<candidateC.size() ; i++) {
+    if ((candidateC[i].pdgId() == 13) or (candidateC[i].pdgId() == -13) and (candidateC[i].status() == 1) and ((1.2 <= abs(candidateC[i].eta())) and (abs(candidateC[i].eta()) <= 2.4)) and (j<4)) {
+      muon_eta[j] = candidateC[i].eta();
+      muon_phi[j] = candidateC[i].phi();
+      j++;
+    }
+  }
+
+  //std::cout << muon_eta[2] << std::endl;
+  //std::cout << muon_phi[2] << std::endl;
+
+
+  //If four muons, check for two unique muon pairs, each pair with dR<0.5 that pass through different endcaps.
+  if (muon_eta[3] != 0) {
+
+    for (int i=0 ; i<4 ; i++) {
+      for (int j=0 ; j<4 ; j++) {
+
+        if ((j!= i) and ((muon_eta[i] * muon_eta[j])) > 0) {
+	    if (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5) {
+	      mu1_index=i;
+	      mu2_index=j;
+	      check1 = 1;
+
+	      eta1 = muon_eta[i];
+	      return true;
+	    } 
+	}
+      }
+    }
+
+
+    
+  
+    for (int i=0 ; i<4 ; i++) {
+      if ((i!=mu1_index) and (i!=mu2_index)) {
+        for (int j=0 ; j<4 ; j++) {
+          if ((j!= i) and (j!=mu1_index) and (j!=mu2_index)) {
+
+	      //Check that this new muon pair is in a different endcap than the other pair.
+	    if (((eta1 * muon_eta[i]) < 0) and ((muon_eta[i] * muon_eta[j]) > 0) and (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5)) {
+	      check2=1;
+
+	      } 
+	    }
+          }
+	}
+    
+    }
+
+    if ((check1==1) or (check2==1)) return true;
+  }
+
+  
 
   return false;
 }
