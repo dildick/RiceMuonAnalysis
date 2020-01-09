@@ -86,96 +86,119 @@ FilterSample2GenMu::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
   //const reco::GenParticleCollection& muonC = *muons.product();
   const reco::GenParticleCollection& candidateC = *candidates.product();
 
-  
-  double muon_eta[5] = {0, 0, 0, 0, 0};
-  double muon_phi[5] = {0, 0, 0, 0, 0};
+  struct genmu_t {
+    double pt, eta, phi;
+    int index;
+    bool isUsed;
+  };
 
-  int barrel_count = 0;
-  int endcap1_count = 0;
-  int endcap2_count = 0;
+  struct muonpair_t {
+    double dR;
+    int index1, index2;
+    int endcap;
+  };
 
-  int mu1_index;
-  int mu2_index;
-  int check = 0;
-  double eta1;
-  
+  genmu_t genmuons[4];
+  muonpair_t muonpairs[2];
+
+  int nMuons = 0;
+  int nMuonPairs = 0;
 
   //Pick out muons (Id=+/- 13) that are final state muons (status=1) in the endcap system (1.2<|eta|<2.4).
   //Store their eta and phis into a local array to calculate dR in the next step.
-  int j=0;
   for (std::size_t i=0 ; i<candidateC.size() ; i++) {
-    if ((candidateC[i].pdgId() == 13) or (candidateC[i].pdgId() == -13) and (candidateC[i].status() == 1) and ((1.2 <= abs(candidateC[i].eta())) and (abs(candidateC[i].eta()) <= 2.4)) and (j<4)) {
-      muon_eta[j] = candidateC[i].eta();
-      muon_phi[j] = candidateC[i].phi();
-      j++;
+    if (std::abs(candidateC[i].pdgId()) != 13) continue;
+    if (candidateC[i].status() != 1) continue;
+    if (std::abs(candidateC[i].eta()) < 1.2) continue;
+    if (std::abs(candidateC[i].eta()) >= 2.4) continue;
+
+    // save muon properties
+    genmu_t muon;
+    muon.pt = candidateC[i].pt();
+    muon.eta = candidateC[i].eta();
+    muon.phi = candidateC[i].phi();
+    muon.index = i;
+
+    genmuons[i] = muon;
+    nMuons++;
+  }
+
+  // Skip event if less than two muons
+  if (nMuons < 2) {
+    return false;
+  }
+
+  // Skip event if more than two muons in barrel
+  int nMuonsBarrel = 0;
+  for (int iMu = 0; iMu < nMuons; iMu++){
+    if (std::abs(genmuons[iMu].eta) < 0.9) {
+      nMuonsBarrel++;
     }
   }
 
-
-  //Skip event if less than two muons, more than two muons in the barrel, or more than two muons in either endcap.
-  if (muon_eta[1]==0) return false;
-  for (std::size_t i=0; i<sizeof(muon_eta) ; i++) {
-    if ((abs(muon_eta[i]) < 1.2) and (muon_eta[i]!=0)) barrel_count++;
-    if ((1.2 <= muon_eta[i]) and (muon_eta[i] <= 2.4)) endcap1_count++;
-    if ((-1.2 >= muon_eta[i]) and (muon_eta[i] >= -2.4)) endcap2_count++;
+  if (nMuonsBarrel > 2) {
+    return false;
   }
 
-  if ((barrel_count > 2) or (endcap1_count > 2) or (endcap2_count > 2)) return false;
+  // Skip event if more than two muons in either endcap.
+  int nMuonsEndcapP = 0;
+  int nMuonsEndcapM = 0;
+  for (int iMu = 0; iMu < nMuons; iMu++){
+    if ((0.9 <= genmuons[iMu].eta) and (genmuons[iMu].eta <= 2.4)) {
+      nMuonsEndcapP++;
+    }
+    if ((-0.9 >= genmuons[iMu].eta) and (genmuons[iMu].eta >= -2.4)) {
+      nMuonsEndcapM++;
+    }
+  }
 
+  if (nMuonsEndcapP > 2 or nMuonsEndcapM > 2) {
+    return false;
+  }
 
+  // We will accept events that have at least one muon pair passing through the same endcap with dR<0.5.
+  // If there are two muon pairs in the event, require they pass through different endcap.
 
-  //We will accept events that have at least one muon pair passing through the same endcap with dR<0.5. 
-  //If there are two muon pairs in the event, require they pass through different endcap.
+  for (int iMu = 0; iMu < nMuons; iMu++) {
 
-  //If two or three muons in the event, look for one good muon pair.
-  if ((muon_eta[1] != 0) and (muon_eta[3]==0)) {
-    for (int i=0 ; i<3 ; i++) {
-      for (int j=0 ; j<3 ; j++) {
-	if ((j!=i) and (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5)) {
-	  return true;
-	}
+    if (genmuons[iMu].isUsed) continue;
+
+    for (int jMu = iMu+1; jMu < nMuons; jMu++) {
+
+      if (genmuons[jMu].isUsed) continue;
+
+      // build a pair
+      double dR = reco::deltaR(genmuons[iMu].eta, genmuons[iMu].phi, genmuons[jMu].eta, genmuons[jMu].phi);
+      if (dR < 0.5) {
+        muonpair_t mupair;
+        mupair.dR = dR;
+        mupair.index1 = iMu;
+        mupair.index2 = jMu;
+
+        genmuons[iMu].isUsed = true;
+        genmuons[jMu].isUsed = true;
+
+        if (genmuons[iMu].eta > 0.9) {
+          mupair.endcap = 1;
+        } else {
+          mupair.endcap = 2;
+        }
+
+        muonpairs[nMuonPairs] = mupair;
+
+        nMuonPairs++;
       }
     }
   }
 
-
-  //If four muons, check for two unique muon pairs, each pair with dR<0.5 that pass through different endcaps.
-  if ((muon_eta[3] != 0) and (muon_eta[4]==0)) {
-
-    for (int i=0 ; i<4 ; i++) {
-      for (int j=0 ; j<4 ; j++) {
-
-        if ((j!= i) and ((muon_eta[i] * muon_eta[j])) > 0) {
-	    if (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5) {
-	      mu1_index=i;
-	      mu2_index=j;
-	      check = 1;
-
-	      eta1 = muon_eta[i];
-	    } 
-	}
-      }
-    }
-    
-    //Look for a second muon pair, making sure not to reuse the same muons that you just used.
-    if (check==1) {
-      for (int i=0 ; i<4 ; i++) {
-	if ((i!=mu1_index) and (i!=mu2_index)) {
-	  for (int j=0 ; j<4 ; j++) {
-	    if ((j!= i) and (j!=mu1_index) and (j!=mu2_index)) {
-
-	      //Check that this new muon pair is in a different endcap than the other pair.
-	      if (((eta1 * muon_eta[i]) < 0) and ((muon_eta[i] * muon_eta[j]) > 0) and (reco::deltaR(muon_eta[i], muon_phi[i], muon_eta[j], muon_phi[j]) < 0.5)) {
-		return true;
-	      } 
-	    }
-          }
-	}
-      }
+  // Allow up to 2 good muon pairs, if they are in different endcaps
+  if (nMuonPairs == 2 ) {
+    if (muonpairs[0].endcap == muonpairs[1].endcap){
+      return false;
     }
   }
 
-  return false;
+  return true;
 }
 
 
